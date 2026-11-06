@@ -329,6 +329,54 @@ function Button({
 function Tag({ children, tone = "neutral" }) {
   return <span className={`tag tag-${tone}`}>{children}</span>;
 }
+
+function FeedbackMessage({ message, type = "success", onClose }) {
+  useEffect(() => {
+    if (!message) return;
+
+    const timer = setTimeout(
+      () => {
+        onClose?.();
+      },
+      type === "error" ? 10000 : 5000,
+    );
+
+    return () => clearTimeout(timer);
+  }, [message, type, onClose]);
+
+  if (!message) return null;
+
+  return (
+    <div
+      className={type === "error" ? "error-box" : "notice"}
+      role={type === "error" ? "alert" : "status"}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        marginBottom: 16,
+      }}
+    >
+      <span>{message}</span>
+
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Dismiss message"
+        style={{
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          fontSize: 20,
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 const statusTone = (s) =>
   s === "Completed" ||
   s === "Active" ||
@@ -961,6 +1009,8 @@ function ListingDetail() {
   );
 }
 function AuthPage({ register = false }) {
+  const [feedback, setFeedback] = useState("");
+  const [feedbackType, setFeedbackType] = useState("success");
   const { login, demoLogin, register: submitRegistration, demo } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -970,6 +1020,18 @@ function AuthPage({ register = false }) {
   const [registrationKind, setRegistrationKind] = useState("client");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!location.state?.notice) return;
+
+    setFeedback(location.state.notice);
+    setFeedbackType("success");
+
+    navigate(location.pathname, {
+      replace: true,
+      state: null,
+    });
+  }, [location.pathname, location.state, navigate]);
   async function submit(e) {
     e.preventDefault();
     setError("");
@@ -982,14 +1044,22 @@ function AuthPage({ register = false }) {
             "bautek_contract_apply_email",
             email.trim().toLowerCase(),
           );
-        navigate("/login", {
-          state: {
-            notice:
-              registrationKind === "contractor"
-                ? "Client account created. Sign in and select Apply as contractor to submit your credentials for review."
-                : "Account created. Sign in to continue.",
+        navigate(
+          "/login",
+          {
+            replace: true,
+            state: {
+              notice:
+                registrationKind === "contractor"
+                  ? "Client account created. Sign in and select Apply as contractor to submit your credentials for review."
+                  : "Account created. Sign in to continue.",
+            },
           },
-        });
+
+          setFeedback("Account created successfully."),
+          setFeedbackType("success"),
+        );
+        return;
       } else {
         const u = await login(email, password);
         const wantsContractor =
@@ -1015,6 +1085,9 @@ function AuthPage({ register = false }) {
       } else {
         setError(error.message || "Sign in failed.");
       }
+    } finally {
+      // Always restore the button.
+      setBusy(false);
     }
   }
   return (
@@ -1067,7 +1140,14 @@ function AuthPage({ register = false }) {
               <Icon name="Info" /> {location.state.notice}
             </div>
           )}
-          {error && <div className="error-box">{error}</div>}
+          <FeedbackMessage
+            message={error || feedback}
+            type={error ? "error" : feedbackType}
+            onClose={() => {
+              setError("");
+              setFeedback("");
+            }}
+          />
           {register && (
             <div className="panel" style={{ marginBottom: 16 }}>
               <strong>What kind of account do you need?</strong>
@@ -1132,7 +1212,7 @@ function AuthPage({ register = false }) {
             </label>
             <Button type="submit" disabled={busy} className="full-width">
               {busy ? "Please wait…" : register ? "Create account" : "Sign in"}{" "}
-              <Icon name="ArrowRight" size={16} />
+              {!busy && <Icon name="ArrowRight" size={16} />}
             </Button>
           </form>
           <p className="switch-auth">
@@ -2567,6 +2647,8 @@ function Invitations() {
   );
 }
 function InvitationActivation() {
+  const [feedback, setFeedback] = useState("");
+  const [feedbackType, setFeedbackType] = useState("success");
   const location = useLocation();
   const navigate = useNavigate();
   const token = new URLSearchParams(location.search).get("token") || "";
@@ -2628,7 +2710,14 @@ function InvitationActivation() {
             Set your name and password. Your role and property permissions are
             determined by the secure backend invitation.
           </p>
-          {error && <div className="error-box">{error}</div>}
+          <FeedbackMessage
+            message={error || feedback}
+            type={error ? "error" : feedbackType}
+            onClose={() => {
+              setError("");
+              setFeedback("");
+            }}
+          />
           {!token && (
             <div className="notice">
               Use the activation link sent to your email address.

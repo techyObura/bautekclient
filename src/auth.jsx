@@ -33,7 +33,7 @@ const API_ENABLED = Boolean(BASE) && !FORCE_DEMO;
 const SESSION_USER = "bautek_user";
 const SESSION_TOKEN = "bautek_access_token";
 const SESSION_KIND = "bautek_auth_mode";
-const TIMEOUT_MS = 9000;
+const TIMEOUT_MS = 30000;
 
 // The present data.js ROLES array may predate the tenant portal. Keep the new
 // role available without requiring changes to data.js at this stage.
@@ -124,6 +124,7 @@ async function rawRequest(path, options = {}) {
   const { headers, body, signal, _retried, ...rest } = options;
   const token = readSession(SESSION_TOKEN);
   const isForm = typeof FormData !== "undefined" && body instanceof FormData;
+
   try {
     const res = await fetch(endpoint, {
       credentials: "include",
